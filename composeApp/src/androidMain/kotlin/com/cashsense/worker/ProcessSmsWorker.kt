@@ -5,42 +5,57 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.cashsense.GemmaAnalyzer
 import com.cashsense.db.DriverFactory
-import com.cashsense.model.TransactionData
-import com.cashsense.db.CashSenseDb
+import com.cashsense.db.DatabaseModule
+import com.cashsense.db.TransactionEntity
+import com.cashsense.router.FastPathExtractor
 import java.util.UUID
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 class ProcessSmsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val smsBody = inputData.getString("sms_body") ?: return Result.failure()
         val smsSender = inputData.getString("sms_sender") ?: ""
 
-        val gemmaAnalyzer = GemmaAnalyzer(applicationContext)
-        val transactionData = gemmaAnalyzer.analyzeSms(smsBody)
-
-        val db = com.cashsense.db.DatabaseModule.getDatabase(DriverFactory(applicationContext))
-
-        if (transactionData != null) {
-            val entity = mapToEntity(transactionData, smsSender)
+        val db = DatabaseModule.getDatabase(DriverFactory(applicationContext))
+        val extractor = FastPathExtractor()
+        
+        val fastResult = extractor.extract(smsBody)
+        
+        if (fastResult.confidence >= 0.7 && fastResult.amount != null && fastResult.merchant != null) {
+            val entity = TransactionEntity(
+                id = UUID.randomUUID().toString(),
+                amount = if (fastResult.isDebit) -fastResult.amount else fastResult.amount,
+                merchant = fastResult.merchant,
+                date = System.currentTimeMillis(),
+                categoryId = categorizeMerchant(fastResult.merchant),
+                notes = "Auto-extracted via Regex",
+                isDeleted = 0L,
+                lastModified = System.currentTimeMillis(),
+                needsReview = 0L,
+                originalSmsText = smsBody
+            )
             db.cashSenseQueries.insertTransaction(entity)
+        } else {
+            // Fallback to Gemma
+            val gemmaAnalyzer = GemmaAnalyzer(applicationContext)
+            val gemmaResult = gemmaAnalyzer.analyzeSms(smsBody)
+            if (gemmaResult != null) {
+                val entity = TransactionEntity(
+                    id = UUID.randomUUID().toString(),
+                    amount = if (gemmaResult.transaction_type == "debit") -gemmaResult.amount else gemmaResult.amount,
+                    merchant = gemmaResult.merchant,
+                    date = System.currentTimeMillis(),
+                    categoryId = gemmaResult.category ?: "Others",
+                    notes = "Extracted via AI",
+                    isDeleted = 0L,
+                    lastModified = System.currentTimeMillis(),
+                    needsReview = if (gemmaResult.confidence < 0.7) 1L else 0L,
+                    originalSmsText = smsBody
+                )
+                db.cashSenseQueries.insertTransaction(entity)
+            }
         }
+        
         return Result.success()
-    }
-
-    private fun mapToEntity(data: TransactionData, smsSender: String): com.cashsense.db.TransactionEntity {
-        return com.cashsense.db.TransactionEntity(
-            id = java.util.UUID.randomUUID().toString(),
-            amount = data.amount,
-            merchant = data.merchant,
-            date = System.currentTimeMillis(),
-            categoryId = data.category ?: "Others",
-            notes = "Received via SMS Receiver",
-            isDeleted = 0L,
-            lastModified = System.currentTimeMillis(),
-            needsReview = if ((data.confidence ?: 0.0) < 0.7) 1L else 0L,
-            originalSmsText = smsSender
-        )
     }
 
     private fun categorizeMerchant(merchant: String): String {
@@ -48,23 +63,7 @@ class ProcessSmsWorker(context: Context, params: WorkerParameters) : CoroutineWo
             "zomato", "swiggy", "dominos" -> "Food"
             "uber", "ola", "metro" -> "Transport"
             "hdfc", "icici", "sbi" -> "Banking"
-            else -> "Uncategorized"
+            else -> "Others"
         }
-    }
-
-    private fun parseSmsFallback(smsBody: String): TransactionData? {
-        val amountRegex = """(?:rs\.?|inr)\s*(\d+\.?\d*)""".toRegex(RegexOption.IGNORE_CASE)
-        val amountMatch = amountRegex.find(smsBody)?.groups?.get(1)?.value?.toDoubleOrNull()
-        if (amountMatch != null) {
-            return TransactionData(
-                amount = amountMatch,
-                currency = "INR",
-                transaction_type = if (smsBody.contains("credit", ignoreCase = true)) "credit" else "debit",
-                merchant = smsBody.split(" ").take(3).joinToString(" "),
-                date = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
-                bank = null
-            )
-        }
-        return null
     }
 }

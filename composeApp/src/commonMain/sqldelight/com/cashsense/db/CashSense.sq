@@ -22,6 +22,12 @@ INSERT OR REPLACE INTO TransactionEntity VALUES ?;
 getChangesSince:
 SELECT * FROM TransactionEntity WHERE lastModified > ?;
 
+selectByMonth:
+SELECT * FROM TransactionEntity WHERE isDeleted = 0 AND date >= ? AND date <= ? ORDER BY date DESC;
+
+getTransactionsNeedingReview:
+SELECT * FROM TransactionEntity WHERE isDeleted = 0 AND needsReview = 1 ORDER BY date DESC;
+
 CREATE TABLE CategoryEntity (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
@@ -81,6 +87,9 @@ UPDATE BudgetEntity SET isDeleted = 1, lastModified = ? WHERE id = ?;
 
 deleteBudgetByCategory:
 UPDATE BudgetEntity SET isDeleted = 1, lastModified = ? WHERE categoryId = ?;
+
+updateBudget:
+UPDATE BudgetEntity SET amount = ?, lastModified = ? WHERE id = ?;
 
 updateTransaction:
 UPDATE TransactionEntity 

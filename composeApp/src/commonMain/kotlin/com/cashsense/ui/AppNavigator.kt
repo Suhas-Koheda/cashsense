@@ -21,6 +21,7 @@ fun AppNavigator(presenter: DashboardPresenter) {
             Screen.Dashboard -> DashboardScreen(presenter)
             Screen.Settings -> SettingsScreen(presenter, onBack = { presenter.navigateTo(Screen.Dashboard) })
             Screen.Logs -> LogsScreen(onBack = { presenter.navigateTo(Screen.Dashboard) })
+            Screen.Review -> ReviewScreen(presenter, onBack = { presenter.navigateTo(Screen.Dashboard) })
         }
     }
 }

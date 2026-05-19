@@ -16,6 +16,20 @@ class CashSenseRepository(val database: CashSenseDb) {
             .mapToList(Dispatchers.Default)
     }
 
+    fun getTransactionsByMonth(start: Long, end: Long): Flow<List<TransactionEntity>> {
+        return database.cashSenseQueries
+            .selectByMonth(start, end)
+            .asFlow()
+            .mapToList(Dispatchers.Default)
+    }
+
+    fun getTransactionsNeedingReview(): Flow<List<TransactionEntity>> {
+        return database.cashSenseQueries
+            .getTransactionsNeedingReview()
+            .asFlow()
+            .mapToList(Dispatchers.Default)
+    }
+
     fun getAllCategories(): Flow<List<com.cashsense.db.CategoryEntity>> {
         return database.cashSenseQueries
             .selectAllCategories()
@@ -52,6 +66,19 @@ class CashSenseRepository(val database: CashSenseDb) {
         database.cashSenseQueries.insertTransaction(transaction)
     }
 
+    fun updateTransaction(tx: TransactionEntity) {
+        database.cashSenseQueries.updateTransaction(
+            amount = tx.amount,
+            merchant = tx.merchant,
+            date = tx.date,
+            categoryId = tx.categoryId,
+            notes = tx.notes,
+            lastModified = System.currentTimeMillis(),
+            needsReview = tx.needsReview,
+            id = tx.id
+        )
+    }
+
     fun deleteTransaction(id: String) {
         database.cashSenseQueries.deleteTransaction(System.currentTimeMillis(), id)
     }
@@ -68,6 +95,10 @@ class CashSenseRepository(val database: CashSenseDb) {
 
     fun saveBudget(budget: com.cashsense.db.BudgetEntity) {
         database.cashSenseQueries.insertBudget(budget)
+    }
+
+    fun updateBudget(id: String, newAmount: Double) {
+        database.cashSenseQueries.updateBudget(newAmount, System.currentTimeMillis(), id)
     }
 
     fun deleteBudget(id: String) {

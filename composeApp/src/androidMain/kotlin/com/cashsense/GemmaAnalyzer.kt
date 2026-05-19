@@ -57,9 +57,7 @@ class GemmaAnalyzer(private val context: Context) {
 
     private val is64Bit = android.os.Process.is64Bit()
 
-    private val tfliteAnalyzer: TfliteAnalyzer? by lazy {
-        if (!is64Bit) TfliteAnalyzer(context) else null
-    }
+
 
     private val inference: LlmInference? by lazy {
         if (is64Bit) {
@@ -73,8 +71,8 @@ class GemmaAnalyzer(private val context: Context) {
 
     suspend fun analyzeSms(smsText: String): TransactionData? = withContext(Dispatchers.Default) {
         if (!is64Bit) {
-            LogManager.d("GemmaAnalyzer", "Device is 32-bit. Using TFLite fallback.")
-            return@withContext tfliteAnalyzer?.analyzeSms(smsText)
+            LogManager.d("GemmaAnalyzer", "Device is 32-bit. Gemma cannot run here. Falling back to regex.")
+            return@withContext fallbackRegexExtract(smsText)
         }
         val currentInference = inference ?: return@withContext fallbackRegexExtract(smsText)
         LogManager.d("GemmaAnalyzer", "Analyzing SMS: $smsText")
