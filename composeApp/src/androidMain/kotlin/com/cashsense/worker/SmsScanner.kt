@@ -19,7 +19,7 @@ class SmsScanner(private val context: Context, private val database: CashSenseDb
         val analyzer = GemmaAnalyzer(context)
         
         val existingTxIds = database.cashSenseQueries.selectAll().executeAsList()
-            .mapNotNull { it.originalSmsId }
+            .mapNotNull { it.originalSmsText }
             .toSet()
 
         val seedSmsList = listOf(
@@ -91,16 +91,14 @@ class SmsScanner(private val context: Context, private val database: CashSenseDb
             val entity = TransactionEntity(
                 id = java.util.UUID.randomUUID().toString(),
                 amount = txData.amount,
-                currency = txData.currency,
-                transactionType = txData.transaction_type,
                 merchant = txData.merchant,
-                date = txData.date,
+                date = System.currentTimeMillis(),
                 categoryId = txData.category ?: "Others",
-                originalSmsId = smsId,
                 notes = "Auto-extracted from SMS",
-                lastModified = System.currentTimeMillis(),
                 isDeleted = 0L,
-                needsReview = if (txData.confidence < 0.7) 1L else 0L
+                lastModified = System.currentTimeMillis(),
+                needsReview = if (txData.confidence < 0.7) 1L else 0L,
+                originalSmsText = body
             )
             database.cashSenseQueries.insertTransaction(entity)
         } else {

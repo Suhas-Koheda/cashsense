@@ -1,0 +1,29 @@
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/ProcessSmsWorker.kt:35:13 Cannot find a parameter with this name: currency
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/ProcessSmsWorker.kt:36:13 Cannot find a parameter with this name: transactionType
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/ProcessSmsWorker.kt:38:20 Type mismatch: inferred type is String but Long was expected
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/ProcessSmsWorker.kt:40:13 Cannot find a parameter with this name: originalSmsId
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/ProcessSmsWorker.kt:44:13 No value passed for parameter 'originalSmsText'
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:22:30 Unresolved reference: originalSmsId
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:34:51 Type mismatch: inferred type is Unit but Boolean was expected
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:34:59 Type inference failed. The value of the type parameter T should be mentioned in input types (argument types, receiver type or expected type). Try to specify it explicitly.
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:73:27 Type inference failed. The value of the type parameter T should be mentioned in input types (argument types, receiver type or expected type). Try to specify it explicitly.
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:94:17 Cannot find a parameter with this name: currency
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:95:17 Cannot find a parameter with this name: transactionType
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:97:24 Type mismatch: inferred type is String but Long was expected
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:99:17 Cannot find a parameter with this name: originalSmsId
+e: file:///home/ssp/KMP/expensified/composeApp/src/androidMain/kotlin/com/cashsense/worker/SmsScanner.kt:103:17 No value passed for parameter 'originalSmsText'
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':composeApp:compileDebugKotlinAndroid'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 10s

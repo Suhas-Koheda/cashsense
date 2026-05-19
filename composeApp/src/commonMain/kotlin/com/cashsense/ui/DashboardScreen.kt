@@ -517,7 +517,7 @@ fun BudgetAtAGlanceSection(
 
 @Composable
 fun BudgetCard(budget: com.cashsense.db.BudgetEntity, spent: Double) {
-    val progress = if (budget.amountLimit > 0) (spent / budget.amountLimit).coerceIn(0.0, 1.0).toFloat() else 0f
+    val progress = if (budget.amount > 0) (spent / budget.amount).coerceIn(0.0, 1.0).toFloat() else 0f
     val pct = (progress * 100).toInt()
     Card(
         modifier = Modifier.width(140.dp),
@@ -540,7 +540,7 @@ fun BudgetCard(budget: com.cashsense.db.BudgetEntity, spent: Double) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(budget.categoryId, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-            Text("₹${spent.toInt()}/₹${budget.amountLimit.toInt()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("₹${spent.toInt()}/₹${budget.amount.toInt()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -700,15 +700,15 @@ fun TransactionCarouselItem(tx: TransactionEntity) {
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
-                    text = tx.date.split("T").first(),
+                    text = kotlinx.datetime.Instant.fromEpochMilliseconds(tx.date).toString().split("T").first(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "${if(tx.transactionType.contains("credit", true)) "+" else "-"} ₹${tx.amount}",
+                    text = "${if(tx.amount > 0) "+" else "-"} ₹${kotlin.math.abs(tx.amount)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if(tx.transactionType.contains("credit", true)) Color(0xFF4CAF50) else Color(0xFFF44336)
+                    color = if(tx.amount > 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                 )
             }
         }

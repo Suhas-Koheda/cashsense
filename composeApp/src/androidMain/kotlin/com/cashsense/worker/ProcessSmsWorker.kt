@@ -32,16 +32,14 @@ class ProcessSmsWorker(context: Context, params: WorkerParameters) : CoroutineWo
         return com.cashsense.db.TransactionEntity(
             id = java.util.UUID.randomUUID().toString(),
             amount = data.amount,
-            currency = data.currency,
-            transactionType = data.transaction_type,
             merchant = data.merchant,
-            date = data.date,
+            date = System.currentTimeMillis(),
             categoryId = data.category ?: "Others",
-            originalSmsId = smsSender,
             notes = "Received via SMS Receiver",
-            lastModified = System.currentTimeMillis(),
             isDeleted = 0L,
-            needsReview = if ((data.confidence ?: 0.0) < 0.7) 1L else 0L
+            lastModified = System.currentTimeMillis(),
+            needsReview = if ((data.confidence ?: 0.0) < 0.7) 1L else 0L,
+            originalSmsText = smsSender
         )
     }
 

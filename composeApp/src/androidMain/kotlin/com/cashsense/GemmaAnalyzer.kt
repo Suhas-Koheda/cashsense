@@ -13,7 +13,7 @@ import java.util.Locale
 import java.util.regex.Pattern
 
 class GemmaAnalyzer(private val context: Context) {
-    private val modelPath = "/data/local/tmp/llm/gemma3-1b-it-int4.task"
+    private val modelPath = "/data/local/tmp/llm/gemma-4-E2B-it-Q4_0.gguf"
 
     companion object {
         @Volatile

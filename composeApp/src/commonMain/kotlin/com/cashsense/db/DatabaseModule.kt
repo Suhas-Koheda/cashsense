@@ -32,9 +32,9 @@ object DatabaseModule {
 
             // Seed some Budgets
             val initialBudgets = listOf(
-                BudgetEntity("b1", "Food", 3000.0, "05/2026", System.currentTimeMillis(), 0L),
-                BudgetEntity("b2", "Transport", 1500.0, "05/2026", System.currentTimeMillis(), 0L),
-                BudgetEntity("b3", "Shopping", 5000.0, "05/2026", System.currentTimeMillis(), 0L)
+                BudgetEntity("b1", "Food", 3000.0, 202605L, System.currentTimeMillis(), 0L),
+                BudgetEntity("b2", "Transport", 1500.0, 202605L, System.currentTimeMillis(), 0L),
+                BudgetEntity("b3", "Shopping", 5000.0, 202605L, System.currentTimeMillis(), 0L)
             )
             initialBudgets.forEach { db.cashSenseQueries.insertBudget(it) }
 

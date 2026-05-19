@@ -3,16 +3,14 @@ import kotlinx.datetime.Instant;
 CREATE TABLE TransactionEntity (
     id TEXT PRIMARY KEY NOT NULL,
     amount REAL NOT NULL,
-    currency TEXT NOT NULL,
-    transactionType TEXT NOT NULL,
     merchant TEXT NOT NULL,
-    date TEXT NOT NULL,
+    date INTEGER NOT NULL,
     categoryId TEXT NOT NULL,
-    originalSmsId TEXT,
     notes TEXT,
-    lastModified INTEGER NOT NULL,
     isDeleted INTEGER DEFAULT 0,
-    needsReview INTEGER DEFAULT 0
+    lastModified INTEGER NOT NULL,
+    needsReview INTEGER DEFAULT 0,
+    originalSmsText TEXT
 );
 
 selectAll:
@@ -27,8 +25,8 @@ SELECT * FROM TransactionEntity WHERE lastModified > ?;
 CREATE TABLE CategoryEntity (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
-    iconName TEXT,
-    colorHex TEXT,
+    icon TEXT,
+    color TEXT,
     isDefault INTEGER DEFAULT 0,
     lastModified INTEGER NOT NULL,
     isDeleted INTEGER DEFAULT 0
@@ -37,8 +35,8 @@ CREATE TABLE CategoryEntity (
 CREATE TABLE BudgetEntity (
     id TEXT PRIMARY KEY NOT NULL,
     categoryId TEXT NOT NULL,
-    amountLimit REAL NOT NULL,
-    monthYear TEXT NOT NULL,
+    amount REAL NOT NULL,
+    month INTEGER NOT NULL,
     lastModified INTEGER NOT NULL,
     isDeleted INTEGER DEFAULT 0
 );
@@ -83,6 +81,17 @@ UPDATE BudgetEntity SET isDeleted = 1, lastModified = ? WHERE id = ?;
 
 deleteBudgetByCategory:
 UPDATE BudgetEntity SET isDeleted = 1, lastModified = ? WHERE categoryId = ?;
+
+updateTransaction:
+UPDATE TransactionEntity 
+SET amount = ?, merchant = ?, date = ?, categoryId = ?, notes = ?, lastModified = ?, needsReview = ?
+WHERE id = ?;
+
+getCategoryById:
+SELECT * FROM CategoryEntity WHERE id = ?;
+
+getDefaultCategory:
+SELECT * FROM CategoryEntity WHERE isDefault = 1 LIMIT 1;
 
 CREATE TABLE SettingsEntity (
     key TEXT PRIMARY KEY NOT NULL,

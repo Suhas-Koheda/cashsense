@@ -72,8 +72,8 @@ class DashboardPresenter(
             val budget = com.cashsense.db.BudgetEntity(
                 id = java.util.UUID.randomUUID().toString(),
                 categoryId = categoryId,
-                amountLimit = amountLimit,
-                monthYear = "05/2026",
+                amount = amountLimit,
+                month = 202605L,
                 lastModified = System.currentTimeMillis(),
                 isDeleted = 0L
             )
@@ -90,9 +90,7 @@ class DashboardPresenter(
             repository.getAllTransactions().collect { txList ->
                 val sortedList = txList.sortedByDescending { it.date }
                 val debits = sortedList.filter { 
-                    it.transactionType.contains("debit", ignoreCase = true) || 
-                    it.transactionType.contains("spent", ignoreCase = true) ||
-                    it.transactionType.contains("paid", ignoreCase = true)
+                    it.amount < 0 || it.notes?.contains("debit", ignoreCase = true) == true
                 }
                 val total = debits.sumOf { it.amount }
                 
