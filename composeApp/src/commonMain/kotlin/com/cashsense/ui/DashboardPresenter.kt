@@ -30,7 +30,9 @@ data class DashboardState(
     val currentMonth: String = "", 
     val monthStartEpoch: Long = 0L,
     val monthEndEpoch: Long = 0L,
-    val isAllTime: Boolean = false
+    val isAllTime: Boolean = false,
+    val availableMonths: List<Pair<Int, Int>> = emptyList(),
+    val themePreference: String = "System"
 )
 
 class DashboardPresenter(
@@ -56,6 +58,14 @@ class DashboardPresenter(
         }
         coroutineScope.launch {
             repository.getAllRecurringPayments().collect { _state.value = _state.value.copy(recurringPayments = it) }
+        }
+        coroutineScope.launch {
+            repository.getAvailableMonths().collect { dbMonths ->
+                val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                val current = Pair(now.year, now.monthNumber)
+                val allMonths = if (dbMonths.contains(current)) dbMonths else listOf(current) + dbMonths
+                _state.value = _state.value.copy(availableMonths = allMonths.distinct().sortedWith(compareBy({ -it.first }, { -it.second })))
+            }
         }
     }
     
@@ -134,10 +144,12 @@ class DashboardPresenter(
     private fun observeSettings() {
         coroutineScope.launch { repository.getSetting("user_name").collect { name -> if (name != null) _state.value = _state.value.copy(userName = name) } }
         coroutineScope.launch { repository.getSetting("monthly_budget").collect { budgetStr -> _state.value = _state.value.copy(monthlyBudget = budgetStr?.toDoubleOrNull() ?: 10000.0) } }
+        coroutineScope.launch { repository.getSetting("theme_preference").collect { theme -> if (theme != null) _state.value = _state.value.copy(themePreference = theme) } }
     }
 
     fun updateUserName(name: String) = coroutineScope.launch { repository.saveSetting("user_name", name) }
     fun updateMonthlyBudget(budget: Double) = coroutineScope.launch { repository.saveSetting("monthly_budget", budget.toString()) }
+    fun updateThemePreference(theme: String) = coroutineScope.launch { repository.saveSetting("theme_preference", theme) }
 
     fun addTransaction(amount: Double, merchant: String, categoryId: String, isDebit: Boolean, date: Long = System.currentTimeMillis()) {
         coroutineScope.launch {

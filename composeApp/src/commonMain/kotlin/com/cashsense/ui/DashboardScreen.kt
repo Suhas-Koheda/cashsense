@@ -41,7 +41,7 @@ fun DashboardScreen(presenter: DashboardPresenter) {
     
     var editingTx by remember { mutableStateOf<TransactionEntity?>(null) }
 
-    MaterialTheme(colorScheme = CashSenseLightColors) {
+    Box {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             floatingActionButton = { 
@@ -342,15 +342,7 @@ fun TopHeaderSection(state: DashboardState, presenter: DashboardPresenter, onRev
     var expandedMonth by remember { mutableStateOf(false) }
     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     
-    // Compute list of months from 2022 to Next Year
-    val monthList = mutableListOf<Pair<Int, Int>>() // Year, Month
-    for (y in (now.year + 1) downTo 2022) {
-        for (m in 12 downTo 1) {
-            if (y > now.year || (y == now.year && m <= now.monthNumber)) {
-                monthList.add(y to m)
-            }
-        }
-    }
+    val monthList = state.availableMonths
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -397,6 +389,9 @@ fun TopHeaderSection(state: DashboardState, presenter: DashboardPresenter, onRev
             }
             IconButton(onClick = { presenter.triggerSync() }) {
                 Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = MaterialTheme.colorScheme.onBackground)
+            }
+            IconButton(onClick = { presenter.navigateTo(Screen.Settings) }) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
             }
         }
     }

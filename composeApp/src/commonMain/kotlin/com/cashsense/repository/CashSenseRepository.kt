@@ -7,6 +7,7 @@ import com.cashsense.db.CashSenseDb
 import com.cashsense.db.TransactionEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class CashSenseRepository(val database: CashSenseDb) {
     fun getAllTransactions(): Flow<List<TransactionEntity>> {
@@ -21,6 +22,20 @@ class CashSenseRepository(val database: CashSenseDb) {
             .selectByMonth(start, end)
             .asFlow()
             .mapToList(Dispatchers.Default)
+    }
+
+    fun getAvailableMonths(): Flow<List<Pair<Int, Int>>> {
+        return database.cashSenseQueries
+            .getAvailableMonths()
+            .asFlow()
+            .mapToList(Dispatchers.Default)
+            .map { list ->
+                list.mapNotNull { 
+                    val y = it.year?.toIntOrNull()
+                    val m = it.month?.toIntOrNull()
+                    if (y != null && m != null) Pair(y, m) else null
+                }
+            }
     }
 
     fun getTransactionsNeedingReview(): Flow<List<TransactionEntity>> {

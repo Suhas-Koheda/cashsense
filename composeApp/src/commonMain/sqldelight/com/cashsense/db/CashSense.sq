@@ -25,6 +25,9 @@ SELECT * FROM TransactionEntity WHERE lastModified > ?;
 selectByMonth:
 SELECT * FROM TransactionEntity WHERE isDeleted = 0 AND date >= ? AND date <= ? ORDER BY date DESC;
 
+getAvailableMonths:
+SELECT DISTINCT strftime('%Y', date/1000, 'unixepoch') AS year, strftime('%m', date/1000, 'unixepoch') AS month FROM TransactionEntity WHERE isDeleted = 0 ORDER BY year DESC, month DESC;
+
 getTransactionsNeedingReview:
 SELECT * FROM TransactionEntity WHERE isDeleted = 0 AND needsReview = 1 ORDER BY date DESC;
 

@@ -25,8 +25,7 @@ fun ReviewScreen(presenter: DashboardPresenter, onBack: () -> Unit) {
     val state by presenter.state.collectAsState()
     var editingTx by remember { mutableStateOf<TransactionEntity?>(null) }
 
-    // Optional: apply our premium theme here, though typically done at the App level
-    MaterialTheme(colorScheme = CashSenseLightColors) {
+    Box {
         Scaffold(
             topBar = {
                 TopAppBar(

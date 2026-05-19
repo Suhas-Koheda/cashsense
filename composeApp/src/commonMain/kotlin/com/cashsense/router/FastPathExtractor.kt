@@ -17,34 +17,50 @@ class FastPathExtractor {
     
     // Patterns for Indian Banks & UPI
     private val hdfcPattern = Regex("(?i)rs\\.?\\s?([\\d,]+\\.?\\d*)\\s?has been debited from a/c.*?to\\s(.*?)\\s?on")
+    private val hdfcGeneric = Regex("(?i)rs\\.?\\s?([\\d,]+\\.?\\d*)\\s?debited")
     private val iciciPattern = Regex("(?i)acct.*?debited for (?:inr|rs)\\.?\\s?([\\d,]+\\.?\\d*).*?info[:\\s]+(.*?)\\.?\\s?available")
+    private val iciciGeneric = Regex("(?i)inr\\s?([\\d,]+\\.?\\d*)\\s?debited")
     private val upiPattern = Regex("(?i)sent\\s?(?:inr|rs)\\.?\\s?([\\d,]+\\.?\\d*)\\s?to\\s(.*?)\\s?ur")
     private val sbiPattern = Regex("(?i)a/c.*?debited by (?:inr|rs)\\.?\\s?([\\d,]+\\.?\\d*)\\s?on.*?transfer to\\s(.*?)\\s?ref")
+    
+    private val gpayPattern = Regex("(?i)paid ₹?([\\d,\\.]+)\\s?to\\s(.+?)(?:\\s|$)")
+    private val phonePePattern = Regex("(?i)sent ₹?([\\d,\\.]+)\\s?to\\s(.+?)(?:\\s|$)")
 
     fun extract(smsBody: String): ExtractedSmsData {
-        // Fast paths - Regex matching (< 5ms)
+        // High confidence direct matches
         var match = hdfcPattern.find(smsBody)
-        if (match != null) {
-            return buildData(match, isDebit = true, confidence = 0.95)
-        }
+        if (match != null) return buildData(match, isDebit = true, confidence = 0.95)
 
         match = iciciPattern.find(smsBody)
-        if (match != null) {
-            return buildData(match, isDebit = true, confidence = 0.95)
-        }
+        if (match != null) return buildData(match, isDebit = true, confidence = 0.95)
+
+        match = sbiPattern.find(smsBody)
+        if (match != null) return buildData(match, isDebit = true, confidence = 0.90)
 
         match = upiPattern.find(smsBody)
+        if (match != null) return buildData(match, isDebit = true, confidence = 0.90)
+        
+        match = gpayPattern.find(smsBody)
+        if (match != null) return buildData(match, isDebit = true, confidence = 0.95)
+        
+        match = phonePePattern.find(smsBody)
+        if (match != null) return buildData(match, isDebit = true, confidence = 0.95)
+
+        // Fallback / Generic bank matches (No merchant captured)
+        match = hdfcGeneric.find(smsBody)
         if (match != null) {
-            return buildData(match, isDebit = true, confidence = 0.90) // UPI merchants can be ambiguous
+            val amt = parseAmount(match.groupValues.getOrNull(1))
+            return ExtractedSmsData(amt, "Unknown Merchant", true, 0.7) // Fallback confidence
         }
         
-        match = sbiPattern.find(smsBody)
+        match = iciciGeneric.find(smsBody)
         if (match != null) {
-            return buildData(match, isDebit = true, confidence = 0.90)
+            val amt = parseAmount(match.groupValues.getOrNull(1))
+            return ExtractedSmsData(amt, "Unknown Merchant", true, 0.7)
         }
 
-        // Add additional fallback/fuzzy matching here if needed (returns lower confidence)
-        val genericDebit = Regex("(?i)(?:debited|spent|paid).*?(?:inr|rs)\\.?\\s?([\\d,]+\\.?\\d*)").find(smsBody)
+        // Generic fallback fuzzy matching
+        val genericDebit = Regex("(?i)(?:debited|spent|paid|sent).*?(?:inr|rs|₹)\\.?\\s?([\\d,]+\\.?\\d*)").find(smsBody)
         if (genericDebit != null) {
             val amount = parseAmount(genericDebit.groupValues[1])
             return ExtractedSmsData(amount, "Unknown Merchant", true, 0.4) // Needs Gemma review
@@ -59,7 +75,6 @@ class FastPathExtractor {
         
         val amount = parseAmount(amountStr)
         
-        // Slightly penalize confidence if merchant string looks weird/too long
         var finalConfidence = confidence
         if (merchantStr != null && merchantStr.length > 30) {
             finalConfidence -= 0.2

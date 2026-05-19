@@ -12,7 +12,11 @@ import com.cashsense.util.LogManager
 import java.util.UUID
 
 class SmsScanner(private val context: Context, private val database: CashSenseDb) {
-    private val transactionKeywords = listOf("debited", "credited", "spent", "paid", "transaction", "txn", "vpa", "upi")
+    private val transactionKeywords = listOf(
+        "debited", "credited", "spent", "paid", "transaction", "txn", "vpa", "upi",
+        "inr", "rs", "₹", "hdfc", "icici", "sbi", "axis", "gpay", "phonepe", "paytm", 
+        "bank", "acct", "account"
+    )
     
     suspend fun scanExistingSms(onProgress: (String) -> Unit) = withContext(Dispatchers.IO) {
         val existingTxIds = database.cashSenseQueries.selectAll().executeAsList()
@@ -29,41 +33,58 @@ class SmsScanner(private val context: Context, private val database: CashSenseDb
                 arrayOf("_id", "address", "body", "date"), 
                 null, 
                 null, 
-                "date DESC" // Removed LIMIT 50 to scan all SMS
+                "date DESC"
             )
         } catch (e: Exception) {
             LogManager.e("SmsScanner", "Failed to query system SMS inbox: ${e.message}")
             null
         }
 
-        cursor?.use {
+        if (cursor == null) {
+            LogManager.e("SmsScanner", "Cursor is null, likely missing READ_SMS permission.")
+            onProgress("Error: Cannot read SMS.")
+            return@withContext
+        }
+
+        var processed = 0
+        var skipped = 0
+        var saved = 0
+
+        cursor.use {
             val addressIndex = it.getColumnIndex("address")
             val bodyIndex = it.getColumnIndex("body")
             
             val total = it.count
-            LogManager.d("SmsScanner", "Found $total potential messages. Starting sequential analysis...")
-            var processed = 0
+            LogManager.d("SmsScanner", "Found $total potential messages in inbox.")
             
             while (it.moveToNext()) {
                 processed++
-                val body = it.getString(bodyIndex)
-                val sender = it.getString(addressIndex)
+                val body = it.getString(bodyIndex) ?: ""
+                val sender = it.getString(addressIndex) ?: ""
 
-                if (body in existingTxIds) continue
+                if (body in existingTxIds) {
+                    skipped++
+                    continue
+                }
 
-                if (sender.length >= 6 && transactionKeywords.any { kw -> body.contains(kw, ignoreCase = true) }) {
-                    onProgress("Analyzing transaction $processed/$total...")
+                if (sender.isNotBlank() && transactionKeywords.any { kw -> body.contains(kw, ignoreCase = true) }) {
+                    LogManager.d("SmsScanner", "Checking SMS from $sender: ${body.take(50)}...")
                     
                     val fastResult = extractor.extract(body)
                     if (fastResult.confidence >= 0.7 && fastResult.amount != null && fastResult.merchant != null) {
                         LogManager.d("SmsScanner", "FAST SUCCESS: Extracted ₹${fastResult.amount} from ${fastResult.merchant}")
                         insertTx(fastResult.amount, fastResult.merchant, "Others", fastResult.isDebit, body, 0L)
-                    } else {
-                        // Fallback to Gemma
+                        saved++
+                        onProgress("Synced $saved transactions...")
+                    } else if (fastResult.amount != null || fastResult.confidence > 0.0) {
+                        // Might be a valid transaction, but confidence is low. Fallback to Gemma
+                        LogManager.d("SmsScanner", "Low confidence (${fastResult.confidence}) for message, falling back to AI.")
+                        onProgress("Analyzing complex message...")
+                        
                         if (gemmaAnalyzer == null) {
-                            onProgress("Warming up AI for unrecognized format...")
                             gemmaAnalyzer = GemmaAnalyzer(context)
                         }
+                        
                         val gemmaResult = gemmaAnalyzer?.analyzeSms(body)
                         if (gemmaResult != null) {
                             insertTx(
@@ -74,16 +95,24 @@ class SmsScanner(private val context: Context, private val database: CashSenseDb
                                 body, 
                                 if (gemmaResult.confidence < 0.7) 1L else 0L
                             )
+                            saved++
+                            onProgress("Synced $saved transactions...")
                         } else {
-                            // Needs manual review
-                            insertTx(0.0, "Unknown", "Others", true, body, 1L)
+                            insertTx(0.0, "Unknown", "Others", true, body, 1L) // Needs manual review
+                            saved++
+                            onProgress("Synced $saved transactions...")
                         }
+                    } else {
+                        LogManager.d("SmsScanner", "Skipped SMS from $sender (Not recognized as transaction)")
+                        skipped++
                     }
+                } else {
+                    skipped++
                 }
             }
+            LogManager.d("SmsScanner", "Scan finished: Processed=$processed, Saved=$saved, Skipped=$skipped")
         }
-        onProgress("Scan complete!")
-        LogManager.d("SmsScanner", "Scan finished successfully.")
+        onProgress("Scan complete! Synced $saved transactions.")
     }
 
     private fun insertTx(amount: Double, merchant: String, category: String, isDebit: Boolean, body: String, needsReview: Long) {

@@ -2,6 +2,7 @@ package com.cashsense
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.work.*
 import com.cashsense.db.DriverFactory
 import com.cashsense.sync.SyncManager
 import com.cashsense.worker.SmsScanner
@@ -17,6 +19,7 @@ import com.cashsense.util.LogManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity(), SyncManager.ServiceAdvertiser {
     private lateinit var smsScanner: SmsScanner
@@ -38,32 +41,56 @@ class MainActivity : ComponentActivity(), SyncManager.ServiceAdvertiser {
         })
     }
 
-    override fun unadvertise() {
-        // Implementation for unregistering service would go here if we kept a reference to the listener
-    }
+    override fun unadvertise() {}
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             val readSms = permissions[Manifest.permission.READ_SMS] ?: false
             val receiveSms = permissions[Manifest.permission.RECEIVE_SMS] ?: false
+            LogManager.d("MainActivity", "Permissions callback: READ_SMS=$readSms, RECEIVE_SMS=$receiveSms")
             if (readSms && receiveSms) {
-                startSmsScanWorker()
+                scheduleSmsWork()
             }
         }
 
-    private fun startSmsScanWorker() {
-        val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.cashsense.worker.SmsScanWorker>()
+    private fun scheduleSmsWork() {
+        LogManager.d("MainActivity", "Scheduling WorkManager SMS scan tasks...")
+        val workManager = WorkManager.getInstance(this)
+        
+        // 1. OneTimeWorkRequest for immediate/initial scan
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+            .setRequiresBatteryNotLow(false)
             .build()
-        androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
-            "SmsScanWork",
-            androidx.work.ExistingWorkPolicy.KEEP,
-            workRequest
+
+        val oneTimeWork = OneTimeWorkRequestBuilder<com.cashsense.worker.SmsScanWorker>()
+            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            "SmsInitialScanWork",
+            ExistingWorkPolicy.KEEP,
+            oneTimeWork
+        )
+
+        // 2. PeriodicWorkRequest every 6 hours for ongoing checks
+        val periodicWork = PeriodicWorkRequestBuilder<com.cashsense.worker.SmsScanWorker>(6, TimeUnit.HOURS)
+            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            "SmsPeriodicScanWork",
+            ExistingPeriodicWorkPolicy.KEEP,
+            periodicWork
         )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LogManager.d("MainActivity", "onCreate started")
+        
         val db = com.cashsense.db.DatabaseModule.getDatabase(DriverFactory(this))
         val syncManager = SyncManager(db)
         try {
@@ -78,23 +105,30 @@ class MainActivity : ComponentActivity(), SyncManager.ServiceAdvertiser {
 
         smsScanner = SmsScanner(this, db)
         
-        val hasReadSms = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
-        val hasReceiveSms = ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+        // Prepare list of permissions to request
+        val permissionsToRequest = mutableListOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS)
         
-        if (!hasReadSms || !hasReceiveSms) {
-            requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        
+        val permissionsNeeded = permissionsToRequest.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsNeeded.isNotEmpty()) {
+            LogManager.d("MainActivity", "Requesting missing permissions: $permissionsNeeded")
+            requestPermissionLauncher.launch(permissionsNeeded.toTypedArray())
         } else {
-            startSmsScanWorker()
+            LogManager.d("MainActivity", "All permissions already granted. Scheduling scan...")
+            scheduleSmsWork()
         }
 
         setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    com.cashsense.ui.AppNavigator(presenter)
-                }
+            Surface(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                com.cashsense.ui.AppNavigator(presenter)
             }
         }
     }
