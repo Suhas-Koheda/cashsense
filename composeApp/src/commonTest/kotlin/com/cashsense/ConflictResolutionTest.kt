@@ -10,15 +10,14 @@ class ConflictResolutionTest {
         val older = TransactionEntity(
             id = "1",
             amount = 100.0,
-            currency = "INR",
-            transactionType = "debit",
             merchant = "Store",
-            date = "2023-01-01",
+            date = 1672531200000L,
             categoryId = "Food",
-            originalSmsId = null,
             notes = null,
+            isDeleted = 0L,
             lastModified = 1000L,
-            isDeleted = false
+            needsReview = 0L,
+            originalSmsText = null
         )
         val newer = older.copy(amount = 120.0, lastModified = 2000L)
         
