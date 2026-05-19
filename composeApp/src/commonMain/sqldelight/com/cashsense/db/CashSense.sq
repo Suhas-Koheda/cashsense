@@ -1,0 +1,96 @@
+import kotlinx.datetime.Instant;
+
+CREATE TABLE TransactionEntity (
+    id TEXT PRIMARY KEY NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT NOT NULL,
+    transactionType TEXT NOT NULL,
+    merchant TEXT NOT NULL,
+    date TEXT NOT NULL,
+    categoryId TEXT NOT NULL,
+    originalSmsId TEXT,
+    notes TEXT,
+    lastModified INTEGER NOT NULL,
+    isDeleted INTEGER DEFAULT 0,
+    needsReview INTEGER DEFAULT 0
+);
+
+selectAll:
+SELECT * FROM TransactionEntity WHERE isDeleted = 0 ORDER BY date DESC;
+
+insertTransaction:
+INSERT OR REPLACE INTO TransactionEntity VALUES ?;
+
+getChangesSince:
+SELECT * FROM TransactionEntity WHERE lastModified > ?;
+
+CREATE TABLE CategoryEntity (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    iconName TEXT,
+    colorHex TEXT,
+    isDefault INTEGER DEFAULT 0,
+    lastModified INTEGER NOT NULL,
+    isDeleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE BudgetEntity (
+    id TEXT PRIMARY KEY NOT NULL,
+    categoryId TEXT NOT NULL,
+    amountLimit REAL NOT NULL,
+    monthYear TEXT NOT NULL,
+    lastModified INTEGER NOT NULL,
+    isDeleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE RecurringPaymentEntity (
+    id TEXT PRIMARY KEY NOT NULL,
+    merchant TEXT NOT NULL,
+    amount REAL NOT NULL,
+    frequency TEXT NOT NULL,
+    expectedDay INTEGER,
+    categoryId TEXT NOT NULL,
+    lastModified INTEGER NOT NULL,
+    isDeleted INTEGER DEFAULT 0
+);
+
+selectAllCategories:
+SELECT * FROM CategoryEntity WHERE isDeleted = 0;
+
+insertCategory:
+INSERT OR REPLACE INTO CategoryEntity VALUES ?;
+
+selectAllBudgets:
+SELECT * FROM BudgetEntity WHERE isDeleted = 0;
+
+insertBudget:
+INSERT OR REPLACE INTO BudgetEntity VALUES ?;
+
+selectAllRecurringPayments:
+SELECT * FROM RecurringPaymentEntity WHERE isDeleted = 0;
+
+insertRecurringPayment:
+INSERT OR REPLACE INTO RecurringPaymentEntity VALUES ?;
+
+deleteTransaction:
+UPDATE TransactionEntity SET isDeleted = 1, lastModified = ? WHERE id = ?;
+
+deleteCategory:
+UPDATE CategoryEntity SET isDeleted = 1, lastModified = ? WHERE id = ?;
+
+deleteBudget:
+UPDATE BudgetEntity SET isDeleted = 1, lastModified = ? WHERE id = ?;
+
+deleteBudgetByCategory:
+UPDATE BudgetEntity SET isDeleted = 1, lastModified = ? WHERE categoryId = ?;
+
+CREATE TABLE SettingsEntity (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL
+);
+
+getSetting:
+SELECT value FROM SettingsEntity WHERE key = ?;
+
+insertSetting:
+INSERT OR REPLACE INTO SettingsEntity VALUES (?, ?);
